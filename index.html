@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pokémon Card Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111111" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #f5f5f5;
+    }
+    header {
+      padding: 12px 16px;
+      background: #1c1c1c;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    button {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: none;
+      background: #2f81f7;
+      color: white;
+      cursor: pointer;
+    }
+    main {
+      padding: 16px;
+      max-width: 600px;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pokémon Card Dashboard</h1>
+    <button id="refreshAllBtn">Rafraîchir</button>
+  </header>
+  <main>
+    <form id="addForm">
+      <input id="cardIdInput" placeholder="ID TCGdex (ex: swsh3-136)" />
+      <button type="submit">Ajouter</button>
+    </form>
+    <div id="status"></div>
+    <div id="cardList"></div>
+  </main>
+  <script>
+    const STORAGE_KEY = "pkm_card_dashboard_v1";
+    let cards = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+    }
+
+    async function fetchCard(id) {
+      const url = `https://api.tcgdex.net/v2/fr/cards/${id}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Not found");
+      return res.json();
+    }
+
+    function render() {
+      const list = document.getElementById("cardList");
+      list.innerHTML = "";
+      cards.forEach(card => {
+        const div = document.createElement("div");
+        div.textContent = `${card.name} — ${card.price ?? "-"} €`;
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById("addForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const id = document.getElementById("cardIdInput").value.trim();
+      if (!id) return;
+      const card = await fetchCard(id);
+      cards.push({
+        id,
+        name: card.name,
+        price: card?.pricing?.cardmarket?.trend ?? null
+      });
+      save();
+      render();
+    });
+
+    document.getElementById("refreshAllBtn").addEventListener("click", async () => {
+      for (const c of cards) {
+        try {
+          const card = await fetchCard(c.id);
+          c.price = card?.pricing?.cardmarket?.trend ?? null;
+        } catch {}
+      }
+      save();
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
